@@ -164,7 +164,7 @@
 					org.jetbrains.kotlin
 				</groupId>
 				<version>
-					1.4.10
+					1.7.10
 				</version>
 			</dependency>
 			<dependency>
