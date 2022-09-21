@@ -37,7 +37,7 @@
         <url>https://github.com/${gitHubRepo}</url>
     </scm>
     <properties>
-        <revision>1.0.5</revision>
+        <revision>1.0.6</revision>
         <changelist></changelist>
 
         <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
@@ -82,12 +82,12 @@
         <dependency>
             <groupId>com.perforce.halm.rest</groupId>
             <artifactId>halm-rest-client</artifactId>
-            <version>1.2.0</version>
+            <version>1.2.1</version>
         </dependency>
         <dependency>
             <groupId>com.perforce.halm</groupId>
             <artifactId>reporting-tool</artifactId>
-            <version>1.1.5</version>
+            <version>1.1.6</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -142,10 +142,6 @@
         <repository>
             <id>repo.jenkins-ci.org</id>
             <url>https://repo.jenkins-ci.org/public/</url>
-        </repository>
-        <repository>
-            <id>PerforceMavenCombined</id>
-            <url>https://mvnartifactory.das.perforce.com:443/artifactory/PerforceMavenCombined</url>
         </repository>
     </repositories>
     <pluginRepositories>
