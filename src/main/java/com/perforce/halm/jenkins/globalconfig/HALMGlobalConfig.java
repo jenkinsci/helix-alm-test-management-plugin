@@ -36,33 +36,51 @@ import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.StaplerRequest;
 
 import javax.inject.Inject;
-import java.security.InvalidParameterException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
+/**
+ * Helix ALM Global Configuration
+ */
 @Extension
 public class HALMGlobalConfig extends GlobalConfiguration {
+    private static final String JSON_CONNECTIONS = "connections";
     private static final String CONNECTION_NAME = "connectionName";
     private static final String API_ADDRESS = "halmAPIAddress";
     private static final String CREDENTIALS_ID = "credentialsID";
 
     private List<HALMConnection> connections = new ArrayList<>();
 
+    /**
+     * Constructor
+     */
     @Inject
     public HALMGlobalConfig() {
         load();
     }
 
+    /**
+     * Constructor
+     *
+     * @param connections Connections to use to initialize internal connections
+     */
     public HALMGlobalConfig(List<HALMConnection> connections) {
         this.connections = new ArrayList<>(connections);
     }
 
+    /**
+     * @inheritDoc
+     */
     @Override
     public boolean configure(StaplerRequest req,
                              JSONObject json)
             throws FormException {
-        boolean clearConnections = json.get("connections") == null && !connections.isEmpty();
+        boolean clearConnections = json.get(JSON_CONNECTIONS) == null && !connections.isEmpty();
         if (clearConnections) {
-            json.put("connections", new JSONObject());
+            json.put(JSON_CONNECTIONS, new JSONObject());
         }
 
         // This throws an exception if one of the entries fails validation.
@@ -82,11 +100,11 @@ public class HALMGlobalConfig extends GlobalConfiguration {
      * @param jObj - the JSON object to check for errors.
      * @throws FormException Throws a FormException if the connection fails validation.
      */
-    private void validateConnections(JSONObject jObj) throws FormException {
+    private static void validateConnections(JSONObject jObj) throws FormException {
         Set<String> encounteredNames = new HashSet<>();
 
-        Object connectionsObj = jObj.get("connections");
-        String rootPath = "connections";
+        Object connectionsObj = jObj.get(JSON_CONNECTIONS);
+        String rootPath = JSON_CONNECTIONS;
         // sanity check to make sure we got the right thing
         if (connectionsObj instanceof JSONArray) {
             JSONArray jConnections = (JSONArray)connectionsObj;
@@ -99,12 +117,16 @@ public class HALMGlobalConfig extends GlobalConfiguration {
         }
         else if (connectionsObj instanceof JSONObject) {
             JSONObject jConnection = (JSONObject) connectionsObj;
-            String formPath = rootPath + '.';
 
-            validateConnection(jConnection, formPath, encounteredNames);
+            if (!jConnection.isEmpty()) {
+                // An empty connection object is valid... it means that the user deleted the last connection.
+                String formPath = rootPath + '.';
+
+                validateConnection(jConnection, formPath, encounteredNames);
+            }
         }
         else {
-            throw new FormException("Unrecognized parameter type.", "connections");
+            throw new FormException("Unrecognized parameter type.", JSON_CONNECTIONS);
         }
     }
 
@@ -116,7 +138,7 @@ public class HALMGlobalConfig extends GlobalConfiguration {
      * @param encounteredNames Set of connection names we have encountered.
      * @throws FormException Throws a FormException if the connection fails validation.
      */
-    private void validateConnection(JSONObject jConnection, String formPath, Set<String> encounteredNames) throws FormException {
+    private static void validateConnection(JSONObject jConnection, String formPath, Set<String> encounteredNames) throws FormException {
         // This throws an exception if any of the required properties are missing or malformed.
         validateRequiredProperties(jConnection, formPath);
 
@@ -133,7 +155,7 @@ public class HALMGlobalConfig extends GlobalConfiguration {
      * @param jObj Connection object
      * @throws FormException Throws a FormException if the connection fails validation.
      */
-    private void validateRequiredProperties(JSONObject jObj, String formPath) throws FormException {
+    private static void validateRequiredProperties(JSONObject jObj, String formPath) throws FormException {
         if (StringUtils.isBlank(jObj.getString(CONNECTION_NAME))) {
             throw new FormException("The Helix ALM connection name cannot be empty.", formPath + CONNECTION_NAME);
         }
@@ -153,10 +175,20 @@ public class HALMGlobalConfig extends GlobalConfiguration {
             .get(HALMGlobalConfig.class);
     }
 
+    /**
+     * Returns the list of connections
+     *
+     * @return List of configured connections
+     */
     public List<HALMConnection> getConnections() {
         return new ArrayList<>(this.connections);
     }
 
+    /**
+     * Sets the connections
+     *
+     * @param connections List of connection to store
+     */
     public void setConnections(List<HALMConnection> connections) {
         this.connections = new ArrayList<>(connections);
     }
