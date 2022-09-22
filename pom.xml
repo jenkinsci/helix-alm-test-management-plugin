@@ -9,7 +9,7 @@
         <relativePath/>
     </parent>
     <groupId>com.perforce.halm.jenkins</groupId>
-    <artifactId>halm-test-management</artifactId>
+    <artifactId>helix-alm-test-management</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <name>Helix ALM Test Management</name>
