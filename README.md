@@ -31,5 +31,5 @@ See the [Helix ALM help](https://help.perforce.com/alm/help.php?product=helixalm
 
 ## Support
 This project is maintained by Perforce Engineering and fully supported. Pull requests will be managed by Perforce's 
-engineering teams. We will do our best to acknowledge these in a timely manner based on available capacity. Issues will
-not be managed on GitHub. All issues should be recorded via Perforce's standard support process.
+engineering teams. We will do our best to acknowledge these in a timely manner based on available capacity. Issues may
+be submitted on GitHub, but you will get a faster response via Perforce's standard support process.
