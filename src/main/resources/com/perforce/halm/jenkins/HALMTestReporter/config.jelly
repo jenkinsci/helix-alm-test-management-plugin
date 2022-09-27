@@ -43,7 +43,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
             <f:select />
         </f:entry>
     </f:block>
-    <f:optionalBlock name="dynamic" title="Show optional settings" field="showOptionalSettings" inline="true">
+    <f:optionalBlock name="dynamic" title="Show optional settings" field="showOptionalSettings">
         <f:entry title="Test run set" field="testRunSetID" help="/descriptor/com.perforce.halm.jenkins.HALMTestReporter/help/testRunSet">
             <f:select />
         </f:entry>
