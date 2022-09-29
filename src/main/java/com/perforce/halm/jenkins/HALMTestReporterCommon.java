@@ -1,25 +1,25 @@
 /*
  * *****************************************************************************
  * The MIT License (MIT)
- * 
- * Copyright (c) 2022, Perforce Software, Inc.  
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of 
- * this software and associated documentation files (the "Software"), to deal in 
- * the Software without restriction, including without limitation the rights to use, 
- * copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the 
- * Software, and to permit persons to whom the Software is furnished to do so, 
+ *
+ * Copyright (c) 2022, Perforce Software, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+ * Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all 
+ *
+ * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  * *****************************************************************************
  */
@@ -29,15 +29,20 @@ package com.perforce.halm.jenkins;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
-import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.perforce.halm.jenkins.globalconfig.HALMConnection;
 import com.perforce.halm.jenkins.globalconfig.HALMGlobalConfig;
+import com.perforce.halm.reportingtool.APIAuthType;
 import com.perforce.halm.reportingtool.BuildSubmitter;
 import com.perforce.halm.reportingtool.format.ReportFormatType;
 import com.perforce.halm.reportingtool.models.BuildMetadata;
 import com.perforce.halm.reportingtool.models.HelixALMSuiteContext;
 import com.perforce.halm.reportingtool.models.ReportContext;
-import com.perforce.halm.rest.*;
+import com.perforce.halm.rest.AuthInfoAPIKey;
+import com.perforce.halm.rest.AuthInfoBasic;
+import com.perforce.halm.rest.AuthInfoToken;
+import com.perforce.halm.rest.CertificateStatus;
+import com.perforce.halm.rest.Client;
+import com.perforce.halm.rest.ConnectionInfo;
 import com.perforce.halm.rest.responses.SubmitAutomationBuildResponse;
 import com.perforce.halm.rest.types.IDLabelPair;
 import com.perforce.halm.rest.types.NameValuePair;
@@ -48,8 +53,15 @@ import com.perforce.halm.rest.types.automation.jenkins.AutomationBuildRunConfigu
 import com.perforce.halm.rest.types.automation.jenkins.JenkinsBuildParameter;
 import com.perforce.halm.rest.types.automation.jenkins.JenkinsBuildParameterText;
 import feign.FeignException;
-import hudson.*;
-import hudson.model.*;
+import hudson.EnvVars;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.Platform;
+import hudson.model.ParameterValue;
+import hudson.model.ParametersAction;
+import hudson.model.Result;
+import hudson.model.Run;
+import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
@@ -57,11 +69,14 @@ import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
 import okhttp3.HttpUrl;
 import org.apache.commons.lang.StringUtils;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.FileNotFoundException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -343,6 +358,31 @@ public class HALMTestReporterCommon {
     }
 
     /**
+     * Retrieves the credentials based on a credential ID
+     *
+     * @param credentialsID Jenkins credentials ID
+     * @return Jenkins credentials, or null if no credentials could be found.
+     */
+    public static StandardCredentials getCredentialsFromId(String credentialsID) {
+        Iterable<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(StandardCredentials.class,
+            Jenkins.get(), ACL.SYSTEM, Collections.emptyList());
+
+        return CredentialsMatchers.firstOrNull(
+            credentials,
+            CredentialsMatchers.withId(credentialsID));
+    }
+
+    /**
+     * Retrieves the credentials based on the Helix ALM connection
+     *
+     * @param connection Helix ALM connection
+     * @return Jenkins Credentials, or null if no credentials could be found.
+     */
+    public static StandardCredentials getCredentialsFromConnection(@NotNull HALMConnection connection) {
+        return getCredentialsFromId(connection.getCredentialsID());
+    }
+
+    /**
      * From the ordinal expressed as a string, get the ReportFormatType enum with that ordinal.
      *
      * @param ord - the ordinal as it is in the list box.
@@ -394,70 +434,21 @@ public class HALMTestReporterCommon {
                 .newBuilder()
                 .build();
         String finalURL = urlObj.toString();
-        Iterable<StandardCredentials> credentialSearch = CredentialsProvider.lookupCredentials(StandardCredentials.class,
-                Jenkins.get(), ACL.SYSTEM, Collections.emptyList());
-        StandardCredentials credentials = CredentialsMatchers.firstOrNull(
-                credentialSearch,
-                CredentialsMatchers.withId(connection.getCredentialsID())
-        );
-        switch (connection.getCredentialsType()) {
-            case basic:
-                // If StringCredentials were submitted as basic auth,
-                // assume the format is <user>:<pass>.
-                if (credentials instanceof StringCredentials) {
-                    StringCredentials apiKeyCreds = (StringCredentials)credentials;
 
-                    // Split the APIKey accordingly
-                    String[] tokens = apiKeyCreds.getSecret().getPlainText().split(":");
-                    // The first half of the tokens will contain the id of the api key,
-                    // the second will contain the "secret" section of the api key.
-                    connectionInfo = new ConnectionInfo(finalURL,
-                            new AuthInfoAPIKey(tokens[0], tokens[1]));
-                }
-                else {
-                    StandardUsernamePasswordCredentials userpass = (StandardUsernamePasswordCredentials) credentials;
-                    connectionInfo = new ConnectionInfo(finalURL,
-                            new AuthInfoBasic(userpass.getUsername(), userpass.getPassword().getPlainText()));
-                }
-                break;
-            case apiKey:
-                // check if StringCredentials were submitted - StringCredentials are secret text.
-                if (credentials instanceof StringCredentials) {
-                    StringCredentials apiKeyCreds = (StringCredentials)credentials;
+        HALMConnection.AuthInfoResult authInfoResult = connection.getAuthInfo();
 
-                    // Split the APIKey accordingly
-                    String[] tokens = apiKeyCreds.getSecret().getPlainText().split(":");
-                    // The first half of the tokens will contain the id of the api key,
-                    // the second will contain the "secret" section of the api key.
-                    connectionInfo = new ConnectionInfo(finalURL,
-                            new AuthInfoAPIKey(tokens[0], tokens[1]));
-                }
-                else { // Assume StandardUsernamePasswordCredentials.
-                    StandardUsernamePasswordCredentials userpass = (StandardUsernamePasswordCredentials)credentials;
-                    // Even if the ApiKey's username is entered as secret, you can still getUsername()
-                    // from the object without any problems.
-                    connectionInfo = new ConnectionInfo(finalURL,
-                            new AuthInfoAPIKey(userpass.getUsername(), userpass.getPassword().getPlainText()));
-                }
-                break;
-            default: // This technically shouldn't need to be here, but is here to prevent warnings from IntelliJ.
-                throw new Exception("The authentication type is invalid for the Helix ALM connection."); // Throw an exception if we somehow have invalid creds
+        if (authInfoResult.isError() ) {
+            throw new Exception(authInfoResult.getErrorMessage());
         }
+
+        connectionInfo = new ConnectionInfo(finalURL, authInfoResult.authInfo);
+
         if (halmUrl.startsWith("https://")) {
             connectionInfo.setPemCertContents(connection.getAcceptedSSLCertificates());
         }
         return connectionInfo;
     }
 
-    public static StandardCredentials getCredentialsInfo(@NotNull HALMConnection connection) {
-        Iterable<StandardCredentials> credentialSearch = CredentialsProvider.lookupCredentials(StandardCredentials.class,
-                Jenkins.get(), ACL.SYSTEM, Collections.emptyList());
-
-        return CredentialsMatchers.firstOrNull(
-                credentialSearch,
-                CredentialsMatchers.withId(connection.getCredentialsID())
-        );
-    }
 
     /**
      * Gets the label (or name) of an automation suite given its ID, or null if nothing exists.
@@ -612,29 +603,35 @@ public class HALMTestReporterCommon {
                 throw new FileNotFoundException("No test result files were generated by the build.");
             }
 
-            boolean isApiKey;
-            StandardCredentials creds = getCredentialsInfo(conn);
-            String[] toks;
-            if (creds instanceof StringCredentials) {
-                toks = ((StringCredentials) creds).getSecret().getPlainText().split(":");
-                isApiKey = true;
+            HALMConnection.CredentialDetailsResult authInfoResult = conn.getCredentialDetails();
+            if (authInfoResult.isError()) {
+                throw new RuntimeException(authInfoResult.getErrorMessage());
             }
             else {
-                StandardUsernamePasswordCredentials cr = (StandardUsernamePasswordCredentials) creds;
-                toks = new String[] { cr.getUsername(), cr.getPassword().getPlainText()};
-                isApiKey = false;
+                listener.getLogger().println("Submitting build files to Helix ALM...");
+                String buildResponse = workspace.act(new SubmitWithRemoteFiles(
+                    reportObj,
+                    Integer.toString(buildNumber),
+                    run.getParent().getName(),
+                    env,
+                    params,
+                    suiteID,
+                    tok.getAuthorizationHeader(),
+                    Long.toString(run.getQueueId()),
+                    authInfoResult.userID, // User
+                    authInfoResult.userSecret,
+                    conn.getCredentialsType() == APIAuthType.apiKey,
+                    halmConnInfo.getUrl(),
+                    halmConnInfo.getPemCertContents(),
+                    lstPathStrs));
+                if (buildResponse != null && !buildResponse.isEmpty()) {
+                    throw new Exception(buildResponse);
+                }
+                else {
+                    listener.getLogger().println("Build files submitted successfully.");
+                }
             }
-            listener.getLogger().println("Submitting build files to Helix ALM...");
-            String buildResponse = workspace.act(new SubmitWithRemoteFiles(reportObj,
-                    Integer.toString(buildNumber), run.getParent().getName(), env, params,
-                    suiteID, tok.getAuthorizationHeader(), Long.toString(run.getQueueId()), toks[0], toks[1], isApiKey,
-                    halmConnInfo.getUrl(), halmConnInfo.getPemCertContents(), lstPathStrs));
-            if (buildResponse != null && !buildResponse.isEmpty()) {
-                throw new Exception(buildResponse);
-            }
-            else {
-                listener.getLogger().println("Build files submitted successfully.");
-            }
+
         }
         catch (Exception e) {
             // Log errors somewhere; if listener is null, write to jenkins log, else write to console output.

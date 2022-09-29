@@ -1,46 +1,39 @@
 /*
  * *****************************************************************************
  * The MIT License (MIT)
- * 
- * Copyright (c) 2022, Perforce Software, Inc.  
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of 
- * this software and associated documentation files (the "Software"), to deal in 
- * the Software without restriction, including without limitation the rights to use, 
- * copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the 
- * Software, and to permit persons to whom the Software is furnished to do so, 
+ *
+ * Copyright (c) 2022, Perforce Software, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+ * Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all 
+ *
+ * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  * *****************************************************************************
  */
 
 package com.perforce.halm.jenkins.globalconfig;
 
-import com.cloudbees.plugins.credentials.CredentialsMatchers;
-import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.cloudbees.plugins.credentials.domains.URIRequirementBuilder;
+import com.perforce.halm.jenkins.HALMTestReporterCommon;
 import com.perforce.halm.reportingtool.APIAuthType;
-import com.perforce.halm.rest.AuthInfoAPIKey;
-import com.perforce.halm.rest.AuthInfoBasic;
-import com.perforce.halm.rest.CertUtils;
-import com.perforce.halm.rest.CertificateInfo;
-import com.perforce.halm.rest.CertificateStatus;
-import com.perforce.halm.rest.Client;
-import com.perforce.halm.rest.ConnectionInfo;
+import com.perforce.halm.rest.*;
 import com.perforce.halm.rest.responses.ProjectListResponse;
 import com.perforce.halm.rest.types.VersionInfo;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -427,6 +420,178 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
         return APIAuthType.values()[ordinalType];
     }
 
+
+    /**
+     * Abstract base class for results, provides common error handling.
+     */
+    public abstract static class AbstractResult {
+        /**
+         * If an error occurs while parsing the authorization info, this will be set to a message indicating
+         * what the problem was.
+         */
+        public String error;
+
+        /**
+         * Checks if the result indicates an error occurred. Check {@link AbstractResult#getErrorMessage()} for an
+         * error message.
+         *
+         * @return True if there was an error,
+         */
+        public final boolean isError() {
+            return isErrorInternal() || error == null;
+        }
+
+        /**
+         * Any relevant error message. If no error message exists, a default one is returned.
+         *
+         * @return Any relevant error message. If no error message exists, a default one is returned.
+         */
+        public String getErrorMessage() {
+            String errMsg = error;
+            if (error == null || error.isEmpty()) {
+                //wordsmith_ptv
+                errMsg = "An unknown error occurred while determining Helix ALM REST API authorization information.";
+            }
+            return errMsg;
+        }
+
+        /**
+         * Implementer can extend isError safely by implementing isErrorInternal.
+         *
+         * @return True indicates the implementor thinks this result should be a failure.
+         */
+        protected boolean isErrorInternal() {
+            return false;
+        }
+    }
+
+    /**
+     * Authorization information result
+     */
+    public static class AuthInfoResult extends AbstractResult{
+        /**
+         * Authorization info. This may be null if error is set.
+         */
+        public IAuthInfo authInfo;
+
+        /**
+         * @inheritDoc
+         */
+        @Override
+        public boolean isErrorInternal() {
+            return authInfo == null;
+        }
+    }
+
+    /**
+     * Credentials information result
+     */
+    public static class CredentialDetailsResult extends AbstractResult {
+        /**
+         * Username or User ID
+         */
+        public String userID = "";
+
+        /**
+         * User password or user secret
+         */
+        public String userSecret = "";
+    }
+
+
+    /**
+     * Retrieves credential info (username // password)
+     *
+     * @return A CredentialDetailsResult object with either the credentials, or an error.
+     */
+    public CredentialDetailsResult getCredentialDetails() {
+        return getCredentialDetails(this.getCredentialsID());
+    }
+
+    /**
+     * Retrieves credential info (username // password)
+     *
+     * @param credentialsID Jenkins Credentials ID
+     * @return A CredentialDetailsResult object with either the credentials, or an error.
+     */
+    public static CredentialDetailsResult getCredentialDetails(final String credentialsID) {
+        // Extract the type of credentials later when we go to create our connection object.
+        // We support StandardUsernamePasswordCredentials and StringCredentials (secret text)
+        // We have the Plain Credentials plugin as a required plugin.
+        // https://plugins.jenkins.io/plain-credentials/
+        CredentialDetailsResult result = new CredentialDetailsResult();
+        StandardCredentials credentials = HALMTestReporterCommon.getCredentialsFromId(credentialsID);
+        if (credentials != null) {
+
+            if (credentials instanceof StringCredentials) {
+                StringCredentials stringCredentials = (StringCredentials) credentials;
+                String[] tokens = stringCredentials.getSecret().getPlainText().split(":", 2);
+                if (tokens.length == 2) {
+                    result.userID = tokens[0];
+                    result.userSecret = tokens[1];
+                } else {
+                    //wordsmith_ptv
+                    result.error = "Invalid format for secret text credentials. Secret text credentials must " +
+                        "have a user ID and user secret separated by a ':' character.";
+                }
+            } else if (credentials instanceof StandardUsernamePasswordCredentials) {
+                StandardUsernamePasswordCredentials usernamePasswordCredentials = (StandardUsernamePasswordCredentials) credentials;
+                result.userID  = usernamePasswordCredentials.getUsername();
+                result.userSecret = usernamePasswordCredentials.getPassword().getPlainText();
+            } else {
+                //wordsmith_ptv
+                result.error = "Credentials must be either 'Username with password' or 'Secret text'.";
+            }
+        }
+        else {
+            //wordsmith_ptv
+            result.error = String.format("Could not find credentials with ID %s", credentialsID);
+        }
+
+        return result;
+    }
+
+    /**
+     * We need to check for a variety of conditions while parsing the credentials. This handles all the odd edge
+     * cases and ensures we handle & return appropriate errors.
+     *
+     * @return An authorization info result which either contains the auth info, or an error message indicating failure.
+     */
+    public AuthInfoResult getAuthInfo() {
+        return getAuthInfo(this.credentialType, this.credentialsID);
+    }
+
+    /**
+     * We need to check for a variety of conditions while parsing the credentials. This handles all the odd edge
+     * cases and ensures we handle & return appropriate errors.
+     *
+     * @param authType Authorization type (API Key vs Basic)
+     * @param credentialsID Jenkins Credentials ID
+     * @return An authorization info result which either contains the auth info, or an error message indicating failure.
+     */
+    protected static AuthInfoResult getAuthInfo(APIAuthType authType, final String credentialsID) {
+        AuthInfoResult authInfoResult = new AuthInfoResult();
+
+        CredentialDetailsResult credentialDetailsResult = getCredentialDetails(credentialsID);
+        if (credentialDetailsResult.isError()) {
+            authInfoResult.error = credentialDetailsResult.getErrorMessage();
+        }
+        else {
+            if (authType == APIAuthType.basic) {
+                authInfoResult.authInfo = new AuthInfoBasic(credentialDetailsResult.userID, credentialDetailsResult.userSecret);
+            }
+            else if (authType == APIAuthType.apiKey) {
+                authInfoResult.authInfo = new AuthInfoAPIKey(credentialDetailsResult.userID, credentialDetailsResult.userSecret);
+            }
+            else {
+                //wordsmith_ptv
+                authInfoResult.error = "Unsupported Helix ALM API authorization type selected.";
+            }
+        }
+
+        return authInfoResult;
+    }
+
     /**
      * Optional connection properties
      */
@@ -615,12 +780,6 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
             }
 
             try {
-                APIAuthType authType = getAuthTypeFromValue(credentialTypeValue);
-                // Extract the type of credentials later when we go to create our connection object.
-                // We support StandardUsernamePasswordCredentials and StringCredentials (secret text)
-                // We have the Plain Credentials plugin as a required plugin.
-                // https://plugins.jenkins.io/plain-credentials/
-                StandardCredentials credentials = getCredentialsFromId(credentialsID);
                 HttpUrl urlObj;
                 String finalURL;
 
@@ -643,51 +802,14 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                 }
 
                 // Build the connection object
-                ConnectionInfo connectionInfo;
-                switch (authType) {
-                    case basic:
-                        // If StringCredentials were submitted as basic auth,
-                        // assume the format is <user>:<pass>.
-                        if (credentials instanceof StringCredentials) {
-                            StringCredentials apiKeyCreds = (StringCredentials)credentials;
-
-                            // Split the APIKey accordingly
-                            String[] tokens = apiKeyCreds.getSecret().getPlainText().split(":");
-                            // The first half of the tokens will contain the id of the api key,
-                            // the second will contain the "secret" section of the api key.
-                            connectionInfo = new ConnectionInfo(finalURL,
-                                    new AuthInfoAPIKey(tokens[0], tokens[1]));
-                        }
-                        else {
-                            StandardUsernamePasswordCredentials userpass = (StandardUsernamePasswordCredentials) credentials;
-                            connectionInfo = new ConnectionInfo(finalURL,
-                                    new AuthInfoBasic(userpass.getUsername(), userpass.getPassword().getPlainText()));
-                        }
-                        break;
-                    case apiKey:
-                        // check if StringCredentials were submitted - StringCredentials are secret text.
-                        if (credentials instanceof StringCredentials) {
-                            StringCredentials apiKeyCreds = (StringCredentials)credentials;
-
-                            // Split the APIKey accordingly
-                            String[] tokens = apiKeyCreds.getSecret().getPlainText().split(":");
-                            // The first half of the tokens will contain the id of the api key,
-                            // the second will contain the "secret" section of the api key.
-                            connectionInfo = new ConnectionInfo(finalURL,
-                                    new AuthInfoAPIKey(tokens[0], tokens[1]));
-                        }
-                        else { // Assume StandardUsernamePasswordCredentials.
-                            StandardUsernamePasswordCredentials userpass = (StandardUsernamePasswordCredentials)credentials;
-                            // Even if the ApiKey's username is entered as secret, you can still getUsername()
-                            // from the object without any problems.
-                            connectionInfo = new ConnectionInfo(finalURL,
-                                    new AuthInfoAPIKey(userpass.getUsername(), userpass.getPassword().getPlainText()));
-                        }
-                        break;
-                    default:
-                        return FormValidation.error("The authentication type is invalid for the Helix ALM connection.");
+                APIAuthType authType = getAuthTypeFromValue(credentialTypeValue);
+                AuthInfoResult authInfoResult = getAuthInfo(authType, credentialsID);
+                if (authInfoResult.isError()) {
+                    logger.log(Level.INFO, authInfoResult.getErrorMessage());
+                    return FormValidation.error(authInfoResult.getErrorMessage());
                 }
 
+                ConnectionInfo connectionInfo = new ConnectionInfo(finalURL, authInfoResult.authInfo);
 
                 // Lets use the halm-rest-client to check to see the destination host exists & looks like the REST API
                 Client tmpClient = new Client(connectionInfo);
@@ -707,7 +829,6 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                     }
                     return FormValidation.error(errMessageUI);
                 }
-
 
                 // If this is an HTTPS connection, we need to determine the certificate status for the connection
                 if (urlObj.isHttps()) {
@@ -925,15 +1046,6 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
             }
 
             return result;
-        }
-
-        private static StandardCredentials getCredentialsFromId(String credentialsID) {
-            Iterable<StandardCredentials> credentials = CredentialsProvider.lookupCredentials(StandardCredentials.class,
-                Jenkins.get(), ACL.SYSTEM, Collections.emptyList());
-
-            return CredentialsMatchers.firstOrNull(
-                credentials,
-                CredentialsMatchers.withId(credentialsID));
         }
 
         /**
