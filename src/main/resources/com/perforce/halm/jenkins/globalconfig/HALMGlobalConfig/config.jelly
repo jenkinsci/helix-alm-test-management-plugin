@@ -29,15 +29,11 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 >
 
     <f:section title="${%Helix ALM Connection Configuration}">
-        <f:entry title="${%REST API servers}">
-
-            <f:repeatable
-                    field="connections"
-                    add="Add REST API Connection"
-                    minimum="0">
-                <st:include page="config.jelly" class="com.perforce.halm.jenkins.globalconfig.HALMConnection" />
-            </f:repeatable>
-
+        <f:entry title="${%REST API servers}" field="connections">
+            <f:repeatableHeteroProperty
+                    hasHeader="true"
+                    addCaption="${%Add REST API Connection}"
+                    deleteCaption="${%Delete REST API Connection}"/>
         </f:entry>
     </f:section>
 </j:jelly>
