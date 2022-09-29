@@ -59,7 +59,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     </span>
     <div style="clear: both;" />
 
-    <f:optionalBlock name="dynamic" title="${%Show optional settings}" field="showOptionalSettings">
+    <f:optionalBlock name="optionalConnectionProps"
+                     field="optionalConnectionProps"
+                     title="${%Show optional settings}"
+                     checked="${instance.optionalConnectionPropsIsSet}">
         <f:entry title="${%Accept SSL certificates}" field="acceptSSLCertificates">
             <f:checkbox />
         </f:entry>
@@ -67,8 +70,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 
     <f:validateButton title="${%Test Connection}" progress="${%Testing connection...}"
                       method="testConnection" with="connectionUUID,connectionName,halmAPIAddress,credentialTypeValue,credentialsID,acceptSSLCertificates" />
-
-    <div style="float:right;">
-        <input type="button" value="${%Delete REST API Connection}" class="repeatable-delete" style="margin-left: 1em;" />
-    </div>
 </j:jelly>

@@ -92,7 +92,7 @@ public class HALMGlobalConfig extends GlobalConfiguration {
             connections.clear();
         }
 
-        return super.configure(req, json);
+        return true;
     }
 
     /**

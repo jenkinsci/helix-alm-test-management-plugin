@@ -115,9 +115,9 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     private String credentialsID;
 
     /**
-     * Should this connect accept // download the first set of certificates it encounters?
+     * Contains the optional connection properties. May be null.
      */
-    private boolean acceptSSLCertificates;
+    private OptionalConnectionProps optionalConnectionProps;
 
     /**
      * Stored list of SSL certificates.
@@ -238,31 +238,54 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     }
 
     /**
-     * This governs whether the 'Optional' settings starts expanded or collapsed.
+     * This is left for legacy support when 'AcceptSSLCertificates' was a top-level property.
+     * Old configurations may be saved with this setting and they need this function to
+     * self-upgrade the configuration.
      *
-     * We want ot show the 'optional' settings if any of them have been changed from the default.
-     *
-     * @return True to expand the optional  settings.
-     */
-    @SuppressWarnings("unused") // This is used by Jenkins, but IntelliJ will flag as unused
-    public boolean getShowOptionalSettings() {
-
-        return this.getAcceptSSLCertificates();
-    }
-
-    /**
-     * @return Are we accepting SSL certificates
-     */
-    public boolean getAcceptSSLCertificates() {
-        return acceptSSLCertificates;
-    }
-
-    /**
      * @param acceptSSLCertificates Are we accepting SSL certificates
      */
     @DataBoundSetter
     public final void setAcceptSSLCertificates(boolean acceptSSLCertificates) {
-        this.acceptSSLCertificates = acceptSSLCertificates;
+        if (this.optionalConnectionProps == null) {
+            this.optionalConnectionProps = new OptionalConnectionProps();
+        }
+        this.optionalConnectionProps.acceptSSLCertificates = acceptSSLCertificates;
+    }
+
+    /**
+     * This is here due to what looks like an odd bug in Jenkins? I would expect
+     * {@link OptionalConnectionProps} to be invoked to retrieve this information, however
+     * the setting did not appear to be populated in the UI until I added this.
+     *
+     * @return Returns the current setting for 'acceptSSLCertificates'
+     */
+    public final boolean getAcceptSSLCertificates() {
+        return this.optionalConnectionProps != null && this.optionalConnectionProps.acceptSSLCertificates;
+    }
+
+    /**
+     * This governs if the 'optional' checkbox is checked or not.
+     *
+     * @return Is the optional connection props set?
+     */
+    public boolean getOptionalConnectionPropsIsSet() {
+        return optionalConnectionProps != null;
+    }
+
+    /**
+     * @return The currently set optional properties object. This may be null
+     */
+    public OptionalConnectionProps getOptionalConnectionProps() {
+        return optionalConnectionProps;
+    }
+
+    /**
+     * Sets the optional connection properties
+     * @param optionalConnectionProps Optional connection properties to set.
+     */
+    @DataBoundSetter
+    public void setOptionalConnectionProps(OptionalConnectionProps optionalConnectionProps) {
+        this.optionalConnectionProps = optionalConnectionProps;
     }
 
     /**
@@ -405,12 +428,52 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     }
 
     /**
+     * Optional connection properties
+     */
+    public static final class OptionalConnectionProps implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        /**
+        * Should this connect accept // download the first set of certificates it encounters?
+        */
+        private boolean acceptSSLCertificates;
+
+        /**
+         * Constructor.
+         */
+        @DataBoundConstructor
+        public OptionalConnectionProps() {
+           // Don't set the optional settings via the constructor, instead rely on jenkins to call the appropriate
+           // setXYZ DataBoundSetter functions. This makes upgrading between configurations easier.
+        }
+
+        /**
+         * @return Are SSL certificates being accepted regardless of their 'validness'?
+         */
+        public boolean getAcceptSSLCertificates() {
+            return acceptSSLCertificates;
+        }
+
+        /**
+         * Sets whether we should accept invalid SSL certificates.
+         * @param acceptSSLCertificates True indicates we should accept invalid SSL certificates
+         */
+        @DataBoundSetter
+        public void setAcceptSSLCertificates(boolean acceptSSLCertificates) {
+            this.acceptSSLCertificates = acceptSSLCertificates;
+        }
+    }
+
+    /**
      * Used for validating the HALMConnection > config.jelly
      */
     @SuppressWarnings({"GrazieInspection", "deprecation"})
     @Extension
     public static class DescriptorImpl extends Descriptor<HALMConnection> {
 
+        /**
+         * Constructor
+         */
         public DescriptorImpl() {
             super(HALMConnection.class);
             load();
@@ -492,6 +555,12 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
             return FormValidation.ok();
         }
 
+        /**
+         * Verifies that the connection name is not blank.
+         *
+         * @param connectionName Connection name to verify
+         * @return FormValidation.Ok if the connection name is not blank.
+         */
         @POST
         public FormValidation doCheckConnectionName(@QueryParameter("connectionName") final String connectionName) {
             if (StringUtils.isBlank(connectionName)) {
@@ -500,6 +569,12 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
             return FormValidation.ok();
         }
 
+        /**
+         * Checks that the credentials ID has been set.
+         *
+         * @param credentialsID The selection in the credentials dropdown
+         * @return Returns Ok if there is something selected, an error otherwise.
+         */
         @POST
         public FormValidation doCheckCredentialsID(@QueryParameter("credentialsID") final String credentialsID) {
             if (StringUtils.isBlank(credentialsID)) {
