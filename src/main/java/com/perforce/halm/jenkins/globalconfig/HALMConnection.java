@@ -438,7 +438,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
          * @return True if there was an error,
          */
         public final boolean isError() {
-            return isErrorInternal() || error == null;
+            return isErrorInternal() || error != null;
         }
 
         /**
@@ -632,7 +632,6 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     /**
      * Used for validating the HALMConnection > config.jelly
      */
-    @SuppressWarnings({"GrazieInspection", "deprecation"})
     @Extension
     public static class DescriptorImpl extends Descriptor<HALMConnection> {
 
