@@ -770,6 +770,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                                                @QueryParameter("credentialTypeValue") final String credentialTypeValue,
                                                @QueryParameter("credentialsID") final String credentialsID,
                                                @QueryParameter("acceptSSLCertificates") final boolean acceptSSLCertificates) {
+            Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             // Initial parameter validation
             if (StringUtils.isBlank(connectionName) ||

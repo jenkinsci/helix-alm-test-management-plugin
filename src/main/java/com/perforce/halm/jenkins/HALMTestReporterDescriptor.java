@@ -1,25 +1,25 @@
 /*
  * *****************************************************************************
  * The MIT License (MIT)
- * 
- * Copyright (c) 2022, Perforce Software, Inc.  
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy of 
- * this software and associated documentation files (the "Software"), to deal in 
- * the Software without restriction, including without limitation the rights to use, 
- * copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the 
- * Software, and to permit persons to whom the Software is furnished to do so, 
+ *
+ * Copyright (c) 2022, Perforce Software, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+ * Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all 
+ *
+ * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  * *****************************************************************************
  */
@@ -33,6 +33,7 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import org.jetbrains.annotations.NotNull;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.verb.POST;
@@ -77,6 +78,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      * @return Credential Type dropdown list values.
      */
     public ListBoxModel doFillHalmConnectionIDItems() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         return commonFuncs.doFillHalmConnectionIDItems();
     }
 
@@ -98,6 +100,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      * @return Populated list of entries for the projectID dropdown.
      */
     public ListBoxModel doFillProjectIDItems(@QueryParameter("halmConnectionID") final String halmConnectionID) {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         return commonFuncs.doFillProjectIDItems(halmConnectionID);
     }
 
@@ -121,7 +124,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      */
     public ListBoxModel doFillAutomationSuiteIDItems(@QueryParameter("halmConnectionID") final String halmConnectionID,
                                                      @QueryParameter("projectID") final String projectID) {
-
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         return commonFuncs.doFillAutomationSuiteIDItems(halmConnectionID, projectID);
     }
 
@@ -142,6 +145,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      * @return Populated list of entries for the testFileFormat dropdown.
      */
     public ListBoxModel doFillTestFileFormatItems() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         return commonFuncs.doFillTestFileFormatItems();
     }
 
@@ -154,7 +158,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      */
     public ListBoxModel doFillTestRunSetIDItems(@QueryParameter("halmConnectionID") final String halmConnectionID,
                                                 @QueryParameter("projectID") final String projectID) {
-
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         return commonFuncs.doFillTestRunSetIDItems(halmConnectionID, projectID);
     }
 }
