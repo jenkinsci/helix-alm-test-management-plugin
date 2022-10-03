@@ -29,6 +29,7 @@ package com.perforce.halm.jenkins;
 import hudson.Extension;
 import hudson.model.AbstractProject;
 import hudson.model.FreeStyleProject;
+import hudson.model.Job;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Publisher;
 import hudson.util.FormValidation;
@@ -78,7 +79,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      * @return Credential Type dropdown list values.
      */
     public ListBoxModel doFillHalmConnectionIDItems() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Job.CONFIGURE);
         return commonFuncs.doFillHalmConnectionIDItems();
     }
 
@@ -100,7 +101,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      * @return Populated list of entries for the projectID dropdown.
      */
     public ListBoxModel doFillProjectIDItems(@QueryParameter("halmConnectionID") final String halmConnectionID) {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Job.CONFIGURE);
         return commonFuncs.doFillProjectIDItems(halmConnectionID);
     }
 
@@ -124,7 +125,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      */
     public ListBoxModel doFillAutomationSuiteIDItems(@QueryParameter("halmConnectionID") final String halmConnectionID,
                                                      @QueryParameter("projectID") final String projectID) {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Job.CONFIGURE);
         return commonFuncs.doFillAutomationSuiteIDItems(halmConnectionID, projectID);
     }
 
@@ -145,7 +146,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      * @return Populated list of entries for the testFileFormat dropdown.
      */
     public ListBoxModel doFillTestFileFormatItems() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Job.CONFIGURE);
         return commonFuncs.doFillTestFileFormatItems();
     }
 
@@ -158,7 +159,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
      */
     public ListBoxModel doFillTestRunSetIDItems(@QueryParameter("halmConnectionID") final String halmConnectionID,
                                                 @QueryParameter("projectID") final String projectID) {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Job.CONFIGURE);
         return commonFuncs.doFillTestRunSetIDItems(halmConnectionID, projectID);
     }
 }
