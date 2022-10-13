@@ -428,22 +428,17 @@ public class HALMTestReporterCommon {
      */
     public static ConnectionInfo getConnectionInfo(@NotNull HALMConnection connection) throws Exception {
         ConnectionInfo connectionInfo;
-        String halmUrl = connection.getHalmAPIAddress();
         //Objects.requireNonNull is here to suppress an IntelliJ warning.
-        HttpUrl urlObj = Objects.requireNonNull(HttpUrl.parse(halmUrl))
-                .newBuilder()
-                .build();
-        String finalURL = urlObj.toString();
-
+        String halmURL = connection.getHalmAPIAddress();
         HALMConnection.AuthInfoResult authInfoResult = connection.getAuthInfo();
 
         if (authInfoResult.isError() ) {
             throw new Exception(authInfoResult.getErrorMessage());
         }
 
-        connectionInfo = new ConnectionInfo(finalURL, authInfoResult.authInfo);
+        connectionInfo = new ConnectionInfo(halmURL, authInfoResult.authInfo);
 
-        if (halmUrl.startsWith("https://")) {
+        if (halmURL.startsWith("https://")) {
             connectionInfo.setPemCertContents(connection.getAcceptedSSLCertificates());
         }
         return connectionInfo;
