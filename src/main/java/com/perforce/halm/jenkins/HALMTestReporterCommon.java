@@ -235,7 +235,7 @@ public class HALMTestReporterCommon {
     }
 
     /**
-     * Populates the Automation Suite dropdown based on the selected connection & project.
+     * Populates the Automation Suite dropdown based on the selected connection and project.
      *
      * @param halmConnectionID Currently selected HALM Connection UUID
      * @param projectID Currently selected HALM Project UUID

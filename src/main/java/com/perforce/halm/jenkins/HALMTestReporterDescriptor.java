@@ -41,7 +41,7 @@ import org.kohsuke.stapler.verb.POST;
 
 
 /**
- * Runs validation & dynamic content on the HALMTestReporter/config.jelly
+ * Runs validation and dynamic content on the HALMTestReporter/config.jelly
  */
 @Extension
 public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
@@ -116,7 +116,7 @@ public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
     }
 
     /**
-     * Populates the Automation Suite dropdown based on the selected connection & project.
+     * Populates the Automation Suite dropdown based on the selected connection and project.
      *
      * @param halmConnectionID Currently selected HALM Connection UUID
      * @param projectID Currently selected HALM Project UUID

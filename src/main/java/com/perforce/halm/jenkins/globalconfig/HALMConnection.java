@@ -499,7 +499,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
         public IAuthInfo authInfo;
 
         /**
-         * @inheritDoc
+         * {@inheritDoc}
          */
         @Override
         public boolean isErrorInternal() {
@@ -577,7 +577,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
 
     /**
      * We need to check for a variety of conditions while parsing the credentials. This handles all the odd edge
-     * cases and ensures we handle & return appropriate errors.
+     * cases and ensures we handle and return appropriate errors.
      *
      * @return An authorization info result which either contains the auth info, or an error message indicating failure.
      */
@@ -587,7 +587,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
 
     /**
      * We need to check for a variety of conditions while parsing the credentials. This handles all the odd edge
-     * cases and ensures we handle & return appropriate errors.
+     * cases and ensures we handle and return appropriate errors.
      *
      * @param authType Authorization type (API Key vs Basic)
      * @param credentialsID Jenkins Credentials ID
@@ -654,7 +654,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     }
 
     /**
-     * Used for validating the HALMConnection > config.jelly
+     * Used for validating the HALMConnection's config.jelly
      */
     @Extension
     public static class DescriptorImpl extends Descriptor<HALMConnection> {
@@ -976,7 +976,8 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
          *
          * @param input The input string to encode
          * @return See description
-         * @throws UnsupportedEncodingException
+         *
+         * @throws UnsupportedEncodingException File must be UTF-8 encoded
          */
         public static String encodeInputAsValidFilename(String input) throws UnsupportedEncodingException {
             return URLEncoder.encode(input, "UTF-8")
