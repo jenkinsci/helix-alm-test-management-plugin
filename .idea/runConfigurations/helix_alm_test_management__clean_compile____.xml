@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="halm-test-management [clean,compile]" type="MavenRunConfiguration" factoryName="Maven" nameIsGenerated="true">
+  <configuration default="false" name="helix-alm-test-management [clean,compile...]" type="MavenRunConfiguration" factoryName="Maven" nameIsGenerated="true">
     <MavenSettings>
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings" />
@@ -12,6 +12,7 @@
             <list>
               <option value="clean" />
               <option value="compile" />
+              <option value="spotbugs:check" />
             </list>
           </option>
           <option name="pomFileName" />
