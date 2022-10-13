@@ -67,7 +67,6 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
-import okhttp3.HttpUrl;
 import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -76,7 +75,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -85,7 +83,8 @@ import java.util.logging.Level;
  */
 public class HALMTestReporterCommon {
 
-    private static Logger logger;
+    private final static Logger logger = Logger.getLogger(HALMTestReporterCommon.class.getName());
+
     private enum clearIndexes {
             SUITES,
             RUNSETS
@@ -102,11 +101,8 @@ public class HALMTestReporterCommon {
 
     /**
      * Initializes a Logger for the class calling this.
-     * @param className - the name of the caller
      */
-    public HALMTestReporterCommon(String className) {
-        logger = Logger.getLogger("jenkins." + className);
-    }
+    public HALMTestReporterCommon() { }
 
     public void setLastProjectID(String projectID) {
         this.lastProjectID = projectID;

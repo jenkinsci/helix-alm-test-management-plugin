@@ -53,6 +53,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class HALMTestReporterStep extends Step implements IHALMTestReporterTask {
+    private static final HALMTestReporterCommon commonFuncs = new HALMTestReporterCommon();
     private String halmConnectionID;
     private String projectID;
     private String automationSuite;
@@ -63,7 +64,6 @@ public class HALMTestReporterStep extends Step implements IHALMTestReporterTask 
     private long testRunSetID;
     private String description;
     private String branch;
-    private static final HALMTestReporterCommon commonFuncs = new HALMTestReporterCommon("jenkins.HALMTestReporterStep");
 
     // It is only possible to have one DataBoundConstructor;
     // any additional ones will throw a compile error.
@@ -222,7 +222,7 @@ public class HALMTestReporterStep extends Step implements IHALMTestReporterTask 
     public static class DescriptorImpl extends StepDescriptor {
 
         private static final HALMTestReporterCommon commonFuncs =
-                new HALMTestReporterCommon("jenkins.HALMTestReporterStepDescriptor");
+                new HALMTestReporterCommon();
         @Override
         public String getFunctionName() {
             return "halm_report";

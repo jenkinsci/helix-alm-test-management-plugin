@@ -45,14 +45,13 @@ import org.kohsuke.stapler.verb.POST;
  */
 @Extension
 public class HALMTestReporterDescriptor extends BuildStepDescriptor<Publisher> {
-    private static HALMTestReporterCommon commonFuncs;
+    private static final HALMTestReporterCommon commonFuncs = new HALMTestReporterCommon();
 
     /**
      * Constructor
      */
     public HALMTestReporterDescriptor() {
         super(HALMTestReporter.class);
-        commonFuncs = new HALMTestReporterCommon("jenkins.HALMTestReporterDescriptor");
         load();
     }
 
