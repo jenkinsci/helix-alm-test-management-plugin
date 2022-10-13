@@ -117,6 +117,11 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
      */
     private List<String> acceptedSSLCertificates;
 
+    /**
+     * @deprecated See {@link OptionalConnectionProps}. This is only here to ensure we can upgrade old configurations.
+     */
+    protected transient Boolean acceptSSLCertificates;
+
     private static final Logger logger = Logger.getLogger("jenkins.HALMConnection");
 
     /**
@@ -420,7 +425,19 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
         return APIAuthType.values()[ordinalType];
     }
 
-
+    /**
+     * This allows upgrading old, saved XML configuration values to the current format.
+     * @return The newly resolved // read in object.
+     */
+    protected Object readResolve() {
+        // In the original version, we used 'acceptSSLCertificates' as a top level value.
+        // Fixes to stop the screen jumping forced us to move this to a sub-object.
+        if (acceptSSLCertificates != null) {
+            setAcceptSSLCertificates(acceptSSLCertificates);
+        }
+        return this;
+    }
+    
     /**
      * Abstract base class for results, provides common error handling.
      */
