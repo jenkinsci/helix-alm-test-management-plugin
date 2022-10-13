@@ -35,7 +35,7 @@
     </scm>
     <properties>
         <prerelease />
-        <revision>1.0.7-beta</revision>
+        <revision>1.0.7${prerelease}-SNAPSHOT</revision>
         <changelist />
 
         <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
