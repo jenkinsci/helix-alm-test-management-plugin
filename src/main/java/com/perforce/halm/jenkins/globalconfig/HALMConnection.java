@@ -437,7 +437,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
         }
         return this;
     }
-    
+
     /**
      * Abstract base class for results, provides common error handling.
      */
@@ -807,11 +807,16 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                     // HttpUrl.parse will throw an exception
                     // if it can't actually connect to the indicated address
                     // when .build() is called.
-
-                    urlObj = HttpUrl.parse(halmAPIAddress)
+                    HttpUrl parsedUrl = HttpUrl.parse(halmAPIAddress);
+                    if (parsedUrl == null) {
+                        return FormValidation.error("The Helix ALM REST API URL is malformed.");
+                    }
+                    else {
+                        urlObj = parsedUrl
                             .newBuilder()
                             .build();
-                    finalURL = urlObj.toString();
+                        finalURL = urlObj.toString();
+                    }
                 }
                 catch (Exception e) {
                     logger.log(Level.INFO, e.getMessage());
