@@ -67,9 +67,7 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.Serializable;
-import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.file.Files;
@@ -79,6 +77,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static com.perforce.halm.jenkins.HALMTestReporterCommon.getExceptionForLogging;
 
 /**
  * Global setting that defines a single Helix ALM REST API connection
@@ -315,11 +315,46 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     }
 
     /**
+     * Saves a new set of accepted SSL certificates. This should only be called if the SSL certificates have changed.
+     *
+     * @throws IOException Something went wrong while writing the certificates to the file.
+     */
+    public void saveAcceptedSSLCertificates() throws IOException {
+        HALMConnection.saveAcceptedSSLCertificates(connectionUUID, connectionName, acceptedSSLCertificates);
+    }
+
+    /**
+     * Saves a new set of accepted SSL certificates. This should only be called if the SSL certificates have changed.
+     *
+     * @param connectionUUID UUID for the connection. This may be null.
+     * @param connectionName Connection name. This may NOT be null.
+     * @param acceptedSSLCertificates List of certificates that have been accepted and need to be saved.
+     * @throws IOException Something went wrong while writing the certificates to the file.
+     */
+    public static void saveAcceptedSSLCertificates(String connectionUUID, String connectionName, List<String> acceptedSSLCertificates) throws IOException {
+        XStream2 certsOut = new XStream2();
+        XmlFile fileOut;
+        String filename = connectionUUID;
+
+        // connectionUUID might not have been set yet, so lets be prepared with a backup name. loadAcceptedCertificates
+        // knows to check for this backup name.
+        if (filename == null || filename.isEmpty()) {
+            filename = DescriptorImpl.encodeInputAsValidFilename(connectionName);
+        }
+
+        fileOut = new XmlFile(certsOut, new File(Jenkins.get().getRootDir(),
+            filename + ".xml"));
+
+        // this will update an existing certs file if the cert(s) changed
+        fileOut.write(acceptedSSLCertificates);
+    }
+
+    /**
      * Loads the certificates that are stored on disk
      */
     private void loadAcceptedCertificates() {
         // If and only if we're dealing with a secure URL, we check the certificates.
-        if (this.halmAPIAddress != null && this.halmAPIAddress.startsWith("https://")) {
+        if (isHTTPSConnection()) {
             this.acceptedSSLCertificates = null;
 
             boolean loadedCerts = loadAcceptedCertsFromFile(this.connectionUUID + ".xml");
@@ -522,6 +557,57 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
         public String userSecret = "";
     }
 
+    /**
+     * ConnectionInformation result object.
+     */
+    public static class ConnectionInfoResult extends AbstractResult {
+        /**
+         * Connection Information
+         */
+        public ConnectionInfo connectionInfo;
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public boolean isErrorInternal() {
+            return connectionInfo == null;
+        }
+    }
+
+    /**
+     * Certificate result
+     */
+    public static class CertificateResult {
+        /**
+         * List of retrieved certificates. May be null, and may be empty.
+         */
+        public List<String> certificates;
+
+        /**
+         * The raw certificate information response.
+         */
+        public CertificateInfo certInfo;
+
+        /**
+         * Were the certificates sent with the initial request valid?
+         *
+         * @return True if they were entirely valid or if the supplied certificates were 'trusted'
+         */
+        public boolean sentAreValid() {
+            return certInfo != null &&
+                (certInfo.getStatus() == CertificateStatus.TRUSTED || certInfo.getStatus() == CertificateStatus.VALID);
+        }
+
+        /**
+         * Does the result contain any certificates?
+         *
+         * @return True if the result contains certificates.
+         */
+        public boolean hasCerts() {
+            return certificates != null && !certificates.isEmpty();
+        }
+    }
 
     /**
      * Retrieves credential info (username // password)
@@ -609,11 +695,143 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
             }
             else {
                 //wordsmith_ptv
-                authInfoResult.error = "Unsupported Helix ALM API authorization type selected.";
+                authInfoResult.error = "Unsupported Helix ALM REST API authorization type selected: " + authType.toString();
             }
         }
 
         return authInfoResult;
+    }
+
+    /**
+     * Build a Helix ALM REST API 'ConnectionInfo' object based on this HALMConnection's settings.
+     *
+     * @return Various things can go wrong while building the ConnectionInfo. Check the 'IsError' on the result to ensure
+     *         we successfully built a ConnectionInfo object.
+     */
+    public ConnectionInfoResult getConnectionInfo() {
+        ConnectionInfoResult connInfo = new ConnectionInfoResult();
+
+        AuthInfoResult authInfoResult = getAuthInfo();
+        if (authInfoResult.isError()) {
+            connInfo.error = authInfoResult.error;
+        }
+        else {
+            connInfo.connectionInfo =  new ConnectionInfo(getHalmAPIAddress(), authInfoResult.authInfo);
+
+            if (isHTTPSConnection()) {
+                connInfo.connectionInfo.setPemCertContents(getOrRetrieveSSLCertificates());
+            }
+        }
+
+        return connInfo;
+    }
+
+    /**
+     * Does this HALMConnection reference an HTTPS server?
+     *
+     * @return True if this references an HTTPS Helix ALM REST API server
+     */
+    public boolean isHTTPSConnection() {
+        return isHTTPSConnection(getHalmAPIAddress());
+    }
+
+    /**
+     * Does the supplied API URL reference an HTTPS server?
+     *
+     * @param apiURL URL to check
+     * @return True if this references an HTTPS server
+     */
+    public static boolean isHTTPSConnection(String apiURL) {
+        return StringUtils.isNotBlank(apiURL) && apiURL.startsWith("https://");
+    }
+
+    /**
+     * This will either return the currently saved SSL Certificates or it will download new certificates that should
+     * work to connect to the configured Helix ALM REST API server.
+     *
+     * @return List of PEM encoded SSL certificates
+     */
+    public synchronized List<String> getOrRetrieveSSLCertificates() {
+        List<String> result = getAcceptedSSLCertificates();
+
+        // If this is definitely an HTTPS connection, we need to check to make sure the certificates we are about to use
+        // are valid. The act of checking if they are valid also downloads the current certificates.
+        CertificateResult certResult = retrieveSSLCertificates();
+        if (isHTTPSConnection() && !certResult.sentAreValid() && getAcceptSSLCertificates() && certResult.hasCerts()) {
+            //     TODO: Ideally... I would like to force the user to CHOOSE to accept the changed
+            //           certificate. However... the only way I could think to force that would be
+            //           to force users to go back to the global configuration & click the 'test' button
+            //           and this is not very intuitive.
+
+            String logMessage = String.format("Downloading new HTTPS certificates for the Helix ALM REST API connection %s - %s.",
+                getConnectionName(), getHalmAPIAddress());
+            logger.log(Level.INFO, logMessage);
+
+            // We are an HTTPS connection, the certificates we attempted to use were NOT valid, we are set to 'accept'
+            // certificates and the result returned new certificates.
+
+            // Set the certificates onto this HALMConnection.
+            setAcceptedSSLCertificates(certResult.certificates);
+
+            // Set the return value
+            result = certResult.certificates;
+
+            // Now, save the certificates to disk
+            try {
+                saveAcceptedSSLCertificates();
+            }
+            catch (IOException e) {
+                String errMessage = String.format("Failed to save Helix ALM REST API connection [%s] SSL certificates. %s",
+                    getConnectionName(), getExceptionForLogging(e));
+                logger.log(Level.INFO, errMessage);
+            }
+
+            // Finally, we just modified a HALMConnection, so we need to save the HALMGlobalConfig.
+            HALMGlobalConfig.get().save();
+        }
+        return result;
+    }
+
+    /**
+     * Connect to the configured Helix ALM REST API address and attempt to download the server's SSL certificates.
+     *
+     * @return The certificate result object. Check 'isError' to see if the request was a success.
+     */
+    public CertificateResult retrieveSSLCertificates() {
+        return retrieveSSLCertificates(getHalmAPIAddress(), getConnectionName(), getAcceptSSLCertificates(), getAcceptedSSLCertificates());
+    }
+
+    /**
+     * Connect to the specified Helix ALM REST API address and attempt to download the server's SSL certificates.
+     *
+     * @param halmAPIAddress Helix ALM REST API address.
+     * @param connectionName HALM Connection name in Jenkins (used for logging)
+     * @param acceptSSLCertificates Is the HALM Connection supposed to 'acceptSSLCertificates'?
+     * @param currentCertificates List of the current SSL Certificates.
+     * @return The certificate result object. Check 'isError' to see if the request was a success.
+     */
+    public static CertificateResult retrieveSSLCertificates(String halmAPIAddress,
+                                                            String connectionName,
+                                                            boolean acceptSSLCertificates,
+                                                            List<String> currentCertificates) {
+        CertificateResult result = new CertificateResult();
+        if (isHTTPSConnection(halmAPIAddress) && acceptSSLCertificates) {
+            // Time to check the certificate status
+            ConnectionInfo connInfo = new ConnectionInfo(halmAPIAddress, null, currentCertificates);
+            result.certInfo = CertUtils.getServerCertStatus(connInfo);
+            result.certificates = result.certInfo.getPemCertificates();
+
+            // Log an error if we didn't actually retrieve any certificates.
+            if (result.certInfo.getPemCertificates() == null || result.certInfo.getStatus() == CertificateStatus.INVALID) {
+                String errMessage = String.format("Couldn't retrieve SSL certificates for Helix ALM REST API connection %s because the certificates are %s. %s",
+                    connectionName,
+                    result.certInfo.getStatus().toString(),
+                    result.certInfo.getErrorMessage());
+                logger.log(Level.INFO, errMessage);
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -623,8 +841,8 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
         private static final long serialVersionUID = 1L;
 
         /**
-        * Should this connect accept // download the first set of certificates it encounters?
-        */
+         * Should this connect accept // download the first set of certificates it encounters?
+         */
         private boolean acceptSSLCertificates;
 
         /**
@@ -632,8 +850,8 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
          */
         @DataBoundConstructor
         public OptionalConnectionProps() {
-           // Don't set the optional settings via the constructor, instead rely on jenkins to call the appropriate
-           // setXYZ DataBoundSetter functions. This makes upgrading between configurations easier.
+            // Don't set the optional settings via the constructor, instead rely on jenkins to call the appropriate
+            // setXYZ DataBoundSetter functions. This makes upgrading between configurations easier.
         }
 
         /**
@@ -840,7 +1058,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
 
                 ConnectionInfo connectionInfo = new ConnectionInfo(finalURL, authInfoResult.authInfo);
 
-                // Lets use the halm-rest-client to check to see the destination host exists & looks like the REST API
+                // Let's use the halm-rest-client to check to see the destination host exists & looks like the REST API
                 Client tmpClient = new Client(connectionInfo);
                 Exception tmpEx = tmpClient.doesServerExist();
                 if (tmpEx != null) {
@@ -862,35 +1080,37 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                 // If this is an HTTPS connection, we need to determine the certificate status for the connection
                 if (urlObj.isHttps()) {
                     // See if we've already got certs.
-                    List<String> acceptedCerts;
+                    List<String> acceptedCerts = new ArrayList<>();
                     if (connectionUUID != null && !connectionUUID.isEmpty()) {
                         acceptedCerts = HALMGlobalConfig.get()
-                                .getConnectionByNameOrID(connectionUUID)
-                                .getAcceptedSSLCertificates();
-
-                        connectionInfo.setPemCertContents(acceptedCerts);
+                            .getConnectionByNameOrID(connectionUUID)
+                            .getAcceptedSSLCertificates();
                     }
 
                     // Figure out the certificate status
-                    CertificateInfo certificateInfo = CertUtils.getServerCertStatus(connectionInfo);
-                    List<String> certs = null;
+                    CertificateResult certResult = retrieveSSLCertificates(connectionInfo.getUrl(), connectionName, acceptSSLCertificates, acceptedCerts);
+                    CertificateInfo certificateInfo = certResult.certInfo;
                     switch (certificateInfo.getStatus()) {
                         case INVALID:
                             return FormValidation.error("The SSL certificate used by the specified REST API server " +
-                                    "is invalid and cannot be used.");
+                                "is invalid and cannot be used.");
                         case INVALID_DOWNLOADABLE:
                             // Check if they're accepting SSL certificates before getting them.
                             if (acceptSSLCertificates) {
-                                certs = certificateInfo.getPemCertificates();
-                                if (certs == null || certs.isEmpty()) { // paranoid double-check, if a secure connection did
+                                // paranoid double-check
+                                if (certResult.certificates == null || certResult.certificates .isEmpty()) {
                                     // not return certs, we should let the user know.
                                     return FormValidation.error("The SSL certificate used by the specified REST API server " +
-                                            "is invalid and cannot be used.");
+                                        "is invalid and cannot be used.");
                                 }
-                            } else {
+                                else {
+                                    acceptedCerts = certResult.certificates;
+                                }
+                            }
+                            else {
                                 return FormValidation.warning("The SSL certificate used by the specified REST API server " +
-                                        "is invalid. To use it anyway to connect to this server, select " +
-                                        "'Accept SSL certificates' and try again.");
+                                    "is invalid. To use it anyway to connect to this server, select " +
+                                    "'Accept SSL certificates' and try again.");
                             }
                             break;
                         case VALID:
@@ -898,20 +1118,9 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                             break;
                     }
 
-                    // Download Certs if INVALID_DOWNLOADABLE & we were told to update the connectionInfo w/certs.
-                    // We already checked if acceptSSLCertificates is true, so no need to check it again - if we reached this far.
-                    if (acceptSSLCertificates && certificateInfo.getStatus() == CertificateStatus.INVALID_DOWNLOADABLE) {
-                        connectionInfo.setPemCertContents(certs);
-                        XStream2 certsOut = new XStream2();
-                        XmlFile fileOut;
-                        if (connectionUUID != null && !connectionUUID.isEmpty()) {
-                            fileOut = new XmlFile(certsOut, new File(Jenkins.get().getRootDir(),
-                                    connectionUUID + ".xml"));
-                        } else {
-                            fileOut = new XmlFile(certsOut, new File(Jenkins.get().getRootDir(),
-                                    encodeInputAsValidFilename(connectionName) + ".xml"));
-                        }
-                        fileOut.write(certs); // this will update an existing certs file if the cert(s) changed
+                    // Ensure the connection information is using the latest certificates.
+                    if (acceptSSLCertificates) {
+                        connectionInfo.setPemCertContents(acceptedCerts);
                     }
                 }
 
@@ -984,19 +1193,6 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                     .replace("+", "%20")
                     .replace(".", "%2E")
                     .replace("*", "%2A");
-        }
-
-        /**
-         * Converts the exception into a stack trace we can log.
-         *
-         * @param ex Exception we want to log
-         * @return String containing the stack trace of the error.
-         */
-        public static String getExceptionForLogging(Exception ex) {
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            ex.printStackTrace(pw);
-            return sw.toString();
         }
 
         /**

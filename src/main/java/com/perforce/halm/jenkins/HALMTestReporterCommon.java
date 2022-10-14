@@ -71,6 +71,8 @@ import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -85,12 +87,31 @@ public class HALMTestReporterCommon {
 
     private final static Logger logger = Logger.getLogger(HALMTestReporterCommon.class.getName());
 
+    private final static String ERR_MESSAGE_MISSING_CONNECTION = "The selected Helix ALM connection no longer exists. Select a different connection.";
+
+    /**
+     * Converts the exception into a stack trace we can log.
+     *
+     * @param ex Exception we want to log
+     * @return String containing the stack trace of the error.
+     */
+    public static String getExceptionForLogging(Exception ex) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        ex.printStackTrace(pw);
+        return sw.toString();
+    }
+
     private enum clearIndexes {
             SUITES,
             RUNSETS
     }
     private String lastProjectID = "";
-    private static final String MENU_ID = "2147483637"; // the menuID for the Run Set menu.
+
+    /**
+     * Constant RecordID  for the 'Test Run Set' menu.
+     */
+    private static final String MENU_ID = "2147483637";
     private static final HashMap<String, String> cachedSuites = new HashMap<>();
     private static final HashMap<String, String> cachedRunSets = new HashMap<>();
     private static final boolean[] cleared = { true, true };
@@ -170,7 +191,7 @@ public class HALMTestReporterCommon {
         if (value == null || value.isEmpty()) {
             return FormValidation.error("You must select a Helix ALM project.");
         }
-       return FormValidation.ok();
+        return FormValidation.ok();
     }
 
     /**
@@ -193,7 +214,9 @@ public class HALMTestReporterCommon {
      */
     public ListBoxModel doFillHalmConnectionIDItems() {
         ListBoxModel items = new ListBoxModel();
-        items.add("", ""); // For no selection; the end user must select an item once items is filled up.
+
+        // For no selection; the end user must select an item once items is filled up.
+        items.add("", "");
         for(HALMConnection connection : HALMGlobalConfig.get().getConnections()) {
             items.add(connection.getConnectionName(), connection.getConnectionUUID());
         }
@@ -210,7 +233,8 @@ public class HALMTestReporterCommon {
     public ListBoxModel doFillProjectIDItems(final String halmConnectionID) {
 
         ListBoxModel items = new ListBoxModel();
-        items.add("", ""); // For no selection; the end user must select an item once items is filled up.
+        // For no selection; the end user must select an item once items is filled up.
+        items.add("", "");
         if (halmConnectionID == null || halmConnectionID.isEmpty()) {
             return items;
         }
@@ -224,7 +248,7 @@ public class HALMTestReporterCommon {
                 }
             }
             else {
-                logger.log(Level.INFO, "The selected Helix ALM connection no longer exists. Select a different connection.");
+                logger.log(Level.INFO, ERR_MESSAGE_MISSING_CONNECTION);
             }
         }
         catch (Exception ex) {
@@ -245,7 +269,8 @@ public class HALMTestReporterCommon {
                                                      final String projectID) {
 
         ListBoxModel items = new ListBoxModel();
-        items.add("", ""); // For no selection; the end user must select an item once items is filled up.
+        // For no selection; the end user must select an item once items is filled up.
+        items.add("", "");
         if (halmConnectionID == null || halmConnectionID.isEmpty()
                 || projectID == null || projectID.isEmpty()) {
             return items;
@@ -272,7 +297,7 @@ public class HALMTestReporterCommon {
                 cleared[clearIndexes.SUITES.ordinal()] = false;
             }
             else {
-                logger.log(Level.INFO, "The selected Helix ALM connection no longer exists. Select a different connection.");
+                logger.log(Level.INFO, ERR_MESSAGE_MISSING_CONNECTION);
             }
         }
         catch (Exception ex) {
@@ -343,7 +368,7 @@ public class HALMTestReporterCommon {
                 cleared[clearIndexes.RUNSETS.ordinal()] = false;
             }
             else {
-                logger.log(Level.INFO, "The selected Helix ALM connection no longer exists. Select a different connection.");
+                logger.log(Level.INFO, ERR_MESSAGE_MISSING_CONNECTION);
             }
         }
         catch (Exception ex) {
@@ -423,22 +448,15 @@ public class HALMTestReporterCommon {
      * @throws Exception if anything fails.
      */
     public static ConnectionInfo getConnectionInfo(@NotNull HALMConnection connection) throws Exception {
-        ConnectionInfo connectionInfo;
-        //Objects.requireNonNull is here to suppress an IntelliJ warning.
-        String halmURL = connection.getHalmAPIAddress();
-        HALMConnection.AuthInfoResult authInfoResult = connection.getAuthInfo();
+        HALMConnection.ConnectionInfoResult connectionInfoResult = connection.getConnectionInfo();
 
-        if (authInfoResult.isError() ) {
-            throw new Exception(authInfoResult.getErrorMessage());
+        if (connectionInfoResult.isError() ) {
+            throw new Exception(connectionInfoResult.getErrorMessage());
         }
 
-        connectionInfo = new ConnectionInfo(halmURL, authInfoResult.authInfo);
-
-        if (halmURL.startsWith("https://")) {
-            connectionInfo.setPemCertContents(connection.getAcceptedSSLCertificates());
-        }
-        return connectionInfo;
+        return connectionInfoResult.connectionInfo;
     }
+
 
 
     /**
@@ -702,80 +720,80 @@ public class HALMTestReporterCommon {
         @Override
         public String call() throws Throwable {
 
-                // Gather the build properties we want to send to the client
-                ArrayList<NameValuePair> props = new ArrayList<>();
-                Platform p = env.getPlatform();
-                props.add(new NameValuePair("os.type", p == null ? "" : determineOS(p)));
-                for (String name : envVars) {
-                    if (!env.get(name, "").isEmpty()) {
-                        String displayName = StringUtils.capitalize(name.toLowerCase().replace("_", " "));
-                        props.add(new NameValuePair(displayName, env.get(name, "")));
-                    }
+            // Gather the build properties we want to send to the client
+            ArrayList<NameValuePair> props = new ArrayList<>();
+            Platform p = env.getPlatform();
+            props.add(new NameValuePair("os.type", p == null ? "" : determineOS(p)));
+            for (String name : envVars) {
+                if (!env.get(name, "").isEmpty()) {
+                    String displayName = StringUtils.capitalize(name.toLowerCase().replace("_", " "));
+                    props.add(new NameValuePair(displayName, env.get(name, "")));
                 }
-                props.add(new NameValuePair("Environment Variables", env.toString()));
+            }
+            props.add(new NameValuePair("Environment Variables", env.toString()));
 
-                IDLabelPair runSet = null;
-                long setID = testRunSetID;
-                if (setID > 0) {
-                    runSet = new IDLabelPair(setID, getLabelOfTestRunSet(setID));
+            IDLabelPair runSet = null;
+            long setID = testRunSetID;
+            if (setID > 0) {
+                runSet = new IDLabelPair(setID, getLabelOfTestRunSet(setID));
+            }
+            else {
+                String setName = testRunSet;
+                if (setName != null && !setName.isEmpty()) {
+                    runSet = new IDLabelPair(-1, setName);
                 }
-                else {
-                    String setName = testRunSet;
-                    if (setName != null && !setName.isEmpty()) {
-                        runSet = new IDLabelPair(-1, setName);
-                    }
+            }
+            ArrayList<JenkinsBuildParameter> jParams = new ArrayList<>();
+            for (ParameterValue param : params) {
+                String name = param.getName();
+                Object objValue = param.getValue();
+                if (!param.isSensitive()) {
+                    JenkinsBuildParameterText textParam = new JenkinsBuildParameterText();
+                    textParam.setText(objValue == null ? "" : objValue.toString());
+                    textParam.setName(name);
+                    jParams.add(textParam);
                 }
-                ArrayList<JenkinsBuildParameter> jParams = new ArrayList<>();
-                for (ParameterValue param : params) {
-                    String name = param.getName();
-                    Object objValue = param.getValue();
-                    if (!param.isSensitive()) {
-                        JenkinsBuildParameterText textParam = new JenkinsBuildParameterText();
-                        textParam.setText(objValue == null ? "" : objValue.toString());
-                        textParam.setName(name);
-                        jParams.add(textParam);
-                    }
-                }
+            }
 
             AutomationBuildRunConfigurationJenkins jConfig = new AutomationBuildRunConfigurationJenkins();
-                jConfig.getJenkins().setBuildParameters(jParams);
+            jConfig.getJenkins().setBuildParameters(jParams);
 
-                ReportContext rCxt = new ReportContext();
-                rCxt.setReportFiles(lstPathStrs);
-                rCxt.setReportFormatType(getTypeFromOrdinal(testFileFormat));
-                ConnectionInfo halmConnInfo;
-                if (isApiKey) {
-                    halmConnInfo = new ConnectionInfo(url, new AuthInfoAPIKey(user, pass), certs);
-                }
-                else {
-                    halmConnInfo = new ConnectionInfo(url, new AuthInfoBasic(user, pass), certs);
-                }
-                HelixALMSuiteContext halmCxt = new HelixALMSuiteContext();
-                halmCxt.setRestAPIConnectionInfo(halmConnInfo);
-                halmCxt.setHelixALMProjectID(projectID);
-                halmCxt.setHelixALMSuiteID(automationSuiteID);
+            ReportContext rCxt = new ReportContext();
+            rCxt.setReportFiles(lstPathStrs);
+            rCxt.setReportFormatType(getTypeFromOrdinal(testFileFormat));
+            ConnectionInfo halmConnInfo;
+            if (isApiKey) {
+                halmConnInfo = new ConnectionInfo(url, new AuthInfoAPIKey(user, pass), certs);
+            }
+            else {
+                halmConnInfo = new ConnectionInfo(url, new AuthInfoBasic(user, pass), certs);
+            }
+            HelixALMSuiteContext halmCxt = new HelixALMSuiteContext();
+            halmCxt.setRestAPIConnectionInfo(halmConnInfo);
+            halmCxt.setHelixALMProjectID(projectID);
+            halmCxt.setHelixALMSuiteID(automationSuiteID);
 
-                BuildMetadata metadata = new BuildMetadata();
-                metadata.setPendingRunID(queueID);
-                metadata.setSourceOverride("Jenkins Plugin");
-                if (branch != null && !branch.isEmpty())
-                    metadata.setBranch(branch);
-                if (description != null && !description.isEmpty())
-                    metadata.setDescription(description);
-                if (runSet != null)
-                    metadata.setTestRunSet(runSet);
+            BuildMetadata metadata = new BuildMetadata();
+            metadata.setPendingRunID(queueID);
+            metadata.setSourceOverride("Jenkins Plugin");
+            if (branch != null && !branch.isEmpty())
+                metadata.setBranch(branch);
+            if (description != null && !description.isEmpty())
+                metadata.setDescription(description);
+            if (runSet != null)
+                metadata.setTestRunSet(runSet);
 
-                metadata.setExternalURL(env.get("BUILD_URL"));
-                metadata.setProperties(props);
-                metadata.setRunConfigurationInfo(jConfig);
+            metadata.setExternalURL(env.get("BUILD_URL"));
+            metadata.setProperties(props);
+            metadata.setRunConfigurationInfo(jConfig);
 
-                BuildSubmitter submitter = new BuildSubmitter(buildNumber,
-                        rCxt, halmCxt, metadata);
-                SubmitAutomationBuildResponse response = submitter.submitAutomationBuild();
-                if (response.isError()){
-                    return response.getErrorMessage();
-                }
-                return null;
+            BuildSubmitter submitter = new BuildSubmitter(buildNumber,
+                rCxt, halmCxt, metadata);
+            SubmitAutomationBuildResponse response = submitter.submitAutomationBuild();
+            if (response.isError()){
+                return response.getErrorMessage();
+            }
+            return null;
         }
     }
 }
