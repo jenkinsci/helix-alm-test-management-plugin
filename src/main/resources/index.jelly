@@ -23,5 +23,5 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 
 <?jelly escape-by-default='true'?>
 <div>
-    Publishes test results to Helix ALM Test Case management.  <a href="https://www.perforce.com/products/helix-alm" target="_blank">Learn more</a> about Helix ALM. Maintained by <a href="https://www.perforce.com/" target="_blank">Perforce</a> for the community. See the <a href="https://help.perforce.com/alm/help.php?product=helixalm&amp;type=web&amp;topic=JenkinsPlugin" target="_blank">Helix ALM help</a> for more information about using the plug-in.
+    Publishes test results to Helix ALM Test Case Management.  <a href="https://www.perforce.com/products/helix-alm" target="_blank">Learn more</a> about Helix ALM. Maintained by <a href="https://www.perforce.com/" target="_blank">Perforce</a> for the community. See the <a href="https://help.perforce.com/alm/help.php?product=helixalm&amp;type=web&amp;topic=JenkinsPlugin" target="_blank">Helix ALM help</a> for more information about using the plug-in.
 </div>
