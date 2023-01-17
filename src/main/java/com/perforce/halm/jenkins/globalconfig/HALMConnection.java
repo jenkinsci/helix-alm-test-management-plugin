@@ -1203,13 +1203,14 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
          * @param versionToCheck Current version, as text. Ex: "2022.2.0"
          * @return FormValidation.OK on success, a FormValidation error otherwise.
          */
-        private FormValidation compareVersions(int[] minimumVersion, String versionToCheck) {
+        public static FormValidation compareVersions(int[] minimumVersion, String versionToCheck) {
             FormValidation result = null;
 
             try {
                 String[] splitVersion = versionToCheck.split("\\.");
                 if (splitVersion.length >= minimumVersion.length) {
-                    for (int i = 0; i < minimumVersion.length && result == null; i++) {
+                    boolean isNewer = false;
+                    for (int i = 0; i < minimumVersion.length && result == null && !isNewer; i++) {
                         int curMinVersion = minimumVersion[i];
                         int curVersion = Integer.parseInt(splitVersion[i]);
 
@@ -1218,6 +1219,8 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                             result = FormValidation.error(String.format("Cannot connect to the specified Helix ALM REST " +
                                 "API Server because it is an old version not supported by the Helix ALM Test Case " +
                                 "Management plugin. The REST API version must be %s or later.", minVersionText));
+                        } else if (curVersion > curMinVersion) {
+                            isNewer = true;
                         }
                     }
                 }
