@@ -127,6 +127,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     /**
      * @deprecated See {@link OptionalConnectionProps}. This is only here to ensure we can upgrade old configurations.
      */
+    @Deprecated
     protected transient Boolean acceptSSLCertificates;
 
     private static final Logger logger = Logger.getLogger("jenkins.HALMConnection");
@@ -432,7 +433,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
      * @param connNameFileName Name of the source file
      * @param newFileName Name of the destination file
      */
-    private void moveCertificateByNameToUUID(String connNameFileName, String newFileName) {
+    private static void moveCertificateByNameToUUID(String connNameFileName, String newFileName) {
         File parentFile = Jenkins.get().getRootDir();
         File srcFile = new File(parentFile, connNameFileName);
         File dstFile = new File(parentFile, newFileName);
@@ -1090,18 +1091,17 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                     // Figure out the certificate status
                     CertificateResult certResult = retrieveSSLCertificates(connectionInfo.getUrl(), connectionName, acceptSSLCertificates, acceptedCerts);
                     CertificateInfo certificateInfo = certResult.certInfo;
+                    final String errorCannotUseCert = "The SSL certificate used by the specified REST API server is invalid and cannot be used.";
                     switch (certificateInfo.getStatus()) {
                         case INVALID:
-                            return FormValidation.error("The SSL certificate used by the specified REST API server " +
-                                "is invalid and cannot be used.");
+                            return FormValidation.error(errorCannotUseCert);
                         case INVALID_DOWNLOADABLE:
                             // Check if they're accepting SSL certificates before getting them.
                             if (acceptSSLCertificates) {
                                 // paranoid double-check
                                 if (certResult.certificates == null || certResult.certificates .isEmpty()) {
                                     // not return certs, we should let the user know.
-                                    return FormValidation.error("The SSL certificate used by the specified REST API server " +
-                                        "is invalid and cannot be used.");
+                                    return FormValidation.error(errorCannotUseCert);
                                 }
                                 else {
                                     acceptedCerts = certResult.certificates;
@@ -1203,13 +1203,14 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
          * @param versionToCheck Current version, as text. Ex: "2022.2.0"
          * @return FormValidation.OK on success, a FormValidation error otherwise.
          */
-        private FormValidation compareVersions(int[] minimumVersion, String versionToCheck) {
+        public static FormValidation compareVersions(int[] minimumVersion, String versionToCheck) {
             FormValidation result = null;
 
             try {
                 String[] splitVersion = versionToCheck.split("\\.");
                 if (splitVersion.length >= minimumVersion.length) {
-                    for (int i = 0; i < minimumVersion.length && result == null; i++) {
+                    boolean isNewer = false;
+                    for (int i = 0; i < minimumVersion.length && result == null && !isNewer; i++) {
                         int curMinVersion = minimumVersion[i];
                         int curVersion = Integer.parseInt(splitVersion[i]);
 
@@ -1218,6 +1219,8 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                             result = FormValidation.error(String.format("Cannot connect to the specified Helix ALM REST " +
                                 "API Server because it is an old version not supported by the Helix ALM Test Case " +
                                 "Management plugin. The REST API version must be %s or later.", minVersionText));
+                        } else if (curVersion > curMinVersion) {
+                            isNewer = true;
                         }
                     }
                 }
