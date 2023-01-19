@@ -127,6 +127,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
     /**
      * @deprecated See {@link OptionalConnectionProps}. This is only here to ensure we can upgrade old configurations.
      */
+    @Deprecated
     protected transient Boolean acceptSSLCertificates;
 
     private static final Logger logger = Logger.getLogger("jenkins.HALMConnection");
@@ -432,7 +433,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
      * @param connNameFileName Name of the source file
      * @param newFileName Name of the destination file
      */
-    private void moveCertificateByNameToUUID(String connNameFileName, String newFileName) {
+    private static void moveCertificateByNameToUUID(String connNameFileName, String newFileName) {
         File parentFile = Jenkins.get().getRootDir();
         File srcFile = new File(parentFile, connNameFileName);
         File dstFile = new File(parentFile, newFileName);
@@ -1090,18 +1091,17 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                     // Figure out the certificate status
                     CertificateResult certResult = retrieveSSLCertificates(connectionInfo.getUrl(), connectionName, acceptSSLCertificates, acceptedCerts);
                     CertificateInfo certificateInfo = certResult.certInfo;
+                    final String errorCannotUseCert = "The SSL certificate used by the specified REST API server is invalid and cannot be used.";
                     switch (certificateInfo.getStatus()) {
                         case INVALID:
-                            return FormValidation.error("The SSL certificate used by the specified REST API server " +
-                                "is invalid and cannot be used.");
+                            return FormValidation.error(errorCannotUseCert);
                         case INVALID_DOWNLOADABLE:
                             // Check if they're accepting SSL certificates before getting them.
                             if (acceptSSLCertificates) {
                                 // paranoid double-check
                                 if (certResult.certificates == null || certResult.certificates .isEmpty()) {
                                     // not return certs, we should let the user know.
-                                    return FormValidation.error("The SSL certificate used by the specified REST API server " +
-                                        "is invalid and cannot be used.");
+                                    return FormValidation.error(errorCannotUseCert);
                                 }
                                 else {
                                     acceptedCerts = certResult.certificates;
