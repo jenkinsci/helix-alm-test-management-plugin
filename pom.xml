@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.47</version>
+        <version>4.48</version>
         <relativePath />
     </parent>
     <groupId>com.perforce.halm.jenkins</groupId>
@@ -62,7 +62,7 @@
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-common</artifactId>
-                <version>1.7.10</version>
+                <version>1.7.20</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.xml.bind</groupId>
@@ -109,12 +109,12 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>1307.v3757c78f17c3</version>
+            <version>1189.vf61b_a_5e2f62e</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>plain-credentials</artifactId>
-            <version>143.v1b_df8b_d3b_e48</version>
+            <version>1.8</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -127,7 +127,7 @@
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>okhttp-api</artifactId>
-            <version>4.11.0-157.v6852a_a_fa_ec11</version>
+            <version>4.9.3-108.v0feda04578cf</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains</groupId>
