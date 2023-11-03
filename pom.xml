@@ -34,7 +34,7 @@
         <url>https://github.com/${gitHubRepo}</url>
     </scm>
     <properties>
-        <revision>1.0.15</revision>
+        <revision>1.0.14</revision>
         <changelist />
 
         <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
@@ -50,7 +50,7 @@
                 <!-- Pick up common dependencies for the selected LTS line: https://github.com/jenkinsci/bom#usage -->
                 <groupId>io.jenkins.tools.bom</groupId>
                 <artifactId>bom-2.387.x</artifactId>
-                <version>2543.vfb_1a_5fb_9496d</version>
+                <version>2329.v078520e55c19</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -109,7 +109,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>1268.v3f0d043d60e9</version>
+            <version>1307.v3757c78f17c3</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
