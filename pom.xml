@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.47</version>
+        <version>4.75</version>
         <relativePath />
     </parent>
     <groupId>com.perforce.halm.jenkins</groupId>
@@ -38,10 +38,10 @@
         <changelist />
 
         <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
-        <jenkins.version>2.289.3</jenkins.version>
+        <jenkins.version>2.387.3</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
-        <maven.compiler.source>1.8</maven.compiler.source>
-        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
     </properties>
 
     <dependencyManagement>
@@ -49,25 +49,45 @@
             <dependency>
                 <!-- Pick up common dependencies for the selected LTS line: https://github.com/jenkinsci/bom#usage -->
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.277.x</artifactId>
-                <version>961.vf0c9f6f59827</version>
+                <artifactId>bom-2.387.x</artifactId>
+                <version>2543.vfb_1a_5fb_9496d</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-stdlib-commons</artifactId>
-                <version>1.4.0</version>
+                <artifactId>kotlin-stdlib</artifactId>
+                <version>1.9.10</version>
             </dependency>
             <dependency>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-stdlib-common</artifactId>
-                <version>1.7.10</version>
+                <version>1.9.10</version>
             </dependency>
             <dependency>
-                <groupId>jakarta.xml.bind</groupId>
-                <artifactId>jakarta.xml.bind-api</artifactId>
-                <version>2.3.3</version>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk7</artifactId>
+                <version>1.9.10</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>1.9.10</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio</artifactId>
+                <version>3.6.0</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.15.0</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>1.16.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -75,12 +95,12 @@
         <dependency>
             <groupId>com.perforce.halm.rest</groupId>
             <artifactId>halm-rest-client</artifactId>
-            <version>1.2.3</version>
+            <version>1.2.4</version>
         </dependency>
         <dependency>
             <groupId>com.perforce.halm</groupId>
             <artifactId>reporting-tool</artifactId>
-            <version>1.1.9</version>
+            <version>1.1.10</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
@@ -109,12 +129,12 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>2.6.1.1</version>
+            <version>1307.v3757c78f17c3</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>plain-credentials</artifactId>
-            <version>1.7</version>
+            <version>143.v1b_df8b_d3b_e48</version>
         </dependency>
         <dependency>
             <groupId>org.jenkins-ci.plugins.workflow</groupId>
@@ -127,7 +147,12 @@
         <dependency>
             <groupId>io.jenkins.plugins</groupId>
             <artifactId>okhttp-api</artifactId>
-            <version>4.9.3-108.v0feda04578cf</version>
+            <version>4.11.0-157.v6852a_a_fa_ec11</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>24.0.1</version>
         </dependency>
     </dependencies>
 
