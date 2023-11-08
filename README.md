@@ -21,7 +21,7 @@ The plugin supports the following report formats:
 * xUnit XML
 
 ## Requirements
-* [Latest stable](https://www.jenkins.io/download/) Jenkins version. Must be 2.289.3 or later.
+* [Latest stable](https://www.jenkins.io/download/) Jenkins version. Must be 2.387.3 or later.
 * [Helix ALM 2022.2 Server](https://www.perforce.com/downloads/helix-alm) or later
 * [Helix ALM REST API 2022.2](https://www.perforce.com/downloads/helix-alm) or later. Installed with the Helix ALM Server.
 
