@@ -67,7 +67,6 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.security.MasterToSlaveCallable;
-import org.apache.commons.lang.StringUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.FileNotFoundException;
@@ -726,7 +725,10 @@ public class HALMTestReporterCommon {
             props.add(new NameValuePair("os.type", p == null ? "" : determineOS(p)));
             for (String name : envVars) {
                 if (!env.get(name, "").isEmpty()) {
-                    String displayName = StringUtils.capitalize(name.toLowerCase().replace("_", " "));
+                    String lowerName = name.toLowerCase().replace("_", " ");
+                    String displayName = lowerName.isEmpty()
+                            ? lowerName
+                            : Character.toTitleCase(lowerName.charAt(0)) + lowerName.substring(1);
                     props.add(new NameValuePair(displayName, env.get(name, "")));
                 }
             }

@@ -32,7 +32,6 @@ import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.StaplerRequest;
 
 import javax.inject.Inject;
@@ -41,6 +40,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import hudson.Util;
 
 /**
  * Helix ALM Global Configuration
@@ -156,16 +156,16 @@ public class HALMGlobalConfig extends GlobalConfiguration {
      * @throws FormException Throws a FormException if the connection fails validation.
      */
     private static void validateRequiredProperties(JSONObject jObj, String formPath) throws FormException {
-        if (StringUtils.isBlank(jObj.getString(CONNECTION_NAME))) {
+        if (Util.fixEmptyAndTrim(jObj.getString(CONNECTION_NAME)) == null) {
             throw new FormException("The Helix ALM connection name cannot be empty.", formPath + CONNECTION_NAME);
         }
 
         String apiAddress = jObj.getString(API_ADDRESS);
-        if (StringUtils.isBlank(apiAddress) || (!apiAddress.startsWith("http://") && !apiAddress.startsWith("https://"))) {
+        if (Util.fixEmptyAndTrim(apiAddress) == null || (!apiAddress.startsWith("http://") && !apiAddress.startsWith("https://"))) {
             throw new FormException("The Helix ALM REST API address must start with http:// or https://.", formPath + API_ADDRESS);
         }
 
-        if (StringUtils.isBlank(jObj.getString(CREDENTIALS_ID))) {
+        if (Util.fixEmptyAndTrim(jObj.getString(CREDENTIALS_ID)) == null) {
             throw new FormException("The Helix ALM connection credentials must be selected.", formPath + CREDENTIALS_ID);
         }
     }

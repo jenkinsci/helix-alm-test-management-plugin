@@ -56,8 +56,6 @@ import hudson.util.ListBoxModel;
 import hudson.util.XStream2;
 import jenkins.model.Jenkins;
 import okhttp3.HttpUrl;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -79,6 +77,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static com.perforce.halm.jenkins.HALMTestReporterCommon.getExceptionForLogging;
+import hudson.Util;
 
 /**
  * Global setting that defines a single Helix ALM REST API connection
@@ -145,7 +144,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                           String connectionName,
                           String halmAPIAddress,
                           String credentialsID) {
-        if (StringUtils.isEmpty(connectionUUID)) {
+        if (Util.fixEmpty(connectionUUID) == null) {
             this.connectionUUID = UUID.randomUUID().toString();
         }
         else {
@@ -743,7 +742,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
      * @return True if this references an HTTPS server
      */
     public static boolean isHTTPSConnection(String apiURL) {
-        return StringUtils.isNotBlank(apiURL) && apiURL.startsWith("https://");
+        return Util.fixEmptyAndTrim(apiURL) != null && apiURL.startsWith("https://");
     }
 
     /**
@@ -970,7 +969,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
          */
         @POST
         public FormValidation doCheckConnectionName(@QueryParameter("connectionName") final String connectionName) {
-            if (StringUtils.isBlank(connectionName)) {
+            if (Util.fixEmptyAndTrim(connectionName) == null) {
                 return FormValidation.error("The connection name cannot be empty");
             }
             return FormValidation.ok();
@@ -984,7 +983,7 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
          */
         @POST
         public FormValidation doCheckCredentialsID(@QueryParameter("credentialsID") final String credentialsID) {
-            if (StringUtils.isBlank(credentialsID)) {
+            if (Util.fixEmptyAndTrim(credentialsID) == null) {
                 return FormValidation.error("Credentials must be selected.");
             }
             return FormValidation.ok();
@@ -1016,9 +1015,9 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
             Jenkins.get().checkPermission(Jenkins.ADMINISTER);
 
             // Initial parameter validation
-            if (StringUtils.isBlank(connectionName) ||
-                StringUtils.isBlank(halmAPIAddress) ||
-                StringUtils.isBlank(credentialsID)) {
+            if (Util.fixEmptyAndTrim(connectionName) == null ||
+                Util.fixEmptyAndTrim(halmAPIAddress) == null ||
+                Util.fixEmptyAndTrim(credentialsID) == null) {
                 return FormValidation.error("Connection name, REST API address, and Credentials cannot be empty.");
             }
 
@@ -1215,7 +1214,9 @@ public class HALMConnection extends AbstractDescribableImpl<HALMConnection> impl
                         int curVersion = Integer.parseInt(splitVersion[i]);
 
                         if (curVersion < curMinVersion) {
-                            String minVersionText = StringUtils.join(ArrayUtils.toObject(minimumVersion), ".");
+                            String minVersionText = java.util.Arrays.stream(minimumVersion)
+                            .mapToObj(Integer::toString)
+                            .collect(java.util.stream.Collectors.joining("."));
                             result = FormValidation.error(String.format("Cannot connect to the specified Helix ALM REST " +
                                 "API Server because it is an old version not supported by the Helix ALM Test Case " +
                                 "Management plugin. The REST API version must be %s or later.", minVersionText));
